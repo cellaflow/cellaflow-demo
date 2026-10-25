@@ -5,9 +5,24 @@ services:
     environment:
       # Reachable only on this compose network, by the demo API.
       CELLAFLOW_ALLOW_UNAUTHENTICATED: "true"
-      CELLAFLOW_LOG_LEVEL: warn
+      # info logs each session and step commit, a few lines per agent: what you watch the demo by.
+      CELLAFLOW_LOG_LEVEL: info
+      # Engine 0.2.0 exports telemetry to localhost:4317 by default and logs an error every 15s
+      # when nothing listens there. A value that is not a URI makes setup fail once at boot, with
+      # one log line, and nothing runs. Remove when moving to an engine where export is opt-in.
+      CELLAFLOW_OTLP_ENDPOINT: "disabled: no collector"
     volumes:
       - engine-data:/data
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${DEMO_AWS_REGION}
+        awslogs-group: /cellaflow-demo/engine
+        awslogs-create-group: "false"
+        # Never block the container on CloudWatch: if it is slow or unreachable, lines are
+        # buffered and, past the buffer, dropped, rather than stalling the engine.
+        mode: non-blocking
+        max-buffer-size: 4m
     restart: unless-stopped
 
   api:
@@ -18,6 +33,14 @@ services:
     depends_on:
       engine:
         condition: service_healthy
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${DEMO_AWS_REGION}
+        awslogs-group: /cellaflow-demo/api
+        awslogs-create-group: "false"
+        mode: non-blocking
+        max-buffer-size: 4m
     restart: unless-stopped
 
   caddy:

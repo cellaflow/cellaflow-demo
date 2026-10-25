@@ -79,6 +79,7 @@ resource "aws_instance" "demo" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   vpc_security_group_ids      = [aws_security_group.demo.id]
+  iam_instance_profile        = aws_iam_instance_profile.demo.name
   associate_public_ip_address = true
   # A change to any file rebuilds the instance. The engine's data is disposable by design.
   user_data_replace_on_change = true
@@ -86,6 +87,7 @@ resource "aws_instance" "demo" {
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     hostname        = local.hostname
     allowed_origins = var.allowed_origins
+    region          = var.region
     files_b64       = { for name, content in local.files : name => base64gzip(content) }
   })
 
@@ -102,6 +104,53 @@ resource "aws_instance" "demo" {
   tags = {
     Name = "cellaflow-demo"
   }
+}
+
+# --- Logs -----------------------------------------------------------------------------------------
+# The engine and the API send their output here through Docker's awslogs driver. Stream with:
+#   aws logs tail /cellaflow-demo/engine --follow --profile <your profile>
+
+resource "aws_cloudwatch_log_group" "demo" {
+  for_each          = toset(["engine", "api"])
+  name              = "/cellaflow-demo/${each.key}"
+  retention_in_days = 14
+}
+
+resource "aws_iam_role" "demo" {
+  name = "cellaflow-demo-instance"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+# Write to the two log groups and nothing else.
+resource "aws_iam_role_policy" "logs" {
+  name = "write-demo-logs"
+  role = aws_iam_role.demo.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["logs:CreateLogStream", "logs:PutLogEvents", "logs:DescribeLogStreams"]
+      Resource = [for g in aws_cloudwatch_log_group.demo : "${g.arn}:*"]
+    }]
+  })
+}
+
+# A shell when one is needed, without opening SSH: aws ssm start-session --target <instance_id>
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.demo.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "demo" {
+  name = "cellaflow-demo-instance"
+  role = aws_iam_role.demo.name
 }
 
 resource "aws_eip" "demo" {

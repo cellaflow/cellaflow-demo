@@ -45,7 +45,20 @@ order does not matter, but HTTPS starts only once the record resolves.
 Any change to `api/` or `deploy/` rebuilds the instance on the next `apply`. The engine's data is
 disposable, and is wiped daily at 09:00 UTC anyway.
 
-Boot log: `aws ec2 get-console-output --instance-id <instance_id> --profile <your profile>`.
+## Logs
+
+The engine and the API send their output to CloudWatch, kept for 14 days:
+
+```bash
+aws logs tail /cellaflow-demo/engine --follow --profile <your profile>   # sessions and step commits
+aws logs tail /cellaflow-demo/api --follow --profile <your profile>      # HTTP requests
+```
+
+Locally, `docker compose logs -f engine`.
+
+A shell on the instance, without SSH: `aws ssm start-session --target <instance_id> --profile <your profile>`
+(needs the Session Manager plugin for the AWS CLI). Boot log:
+`aws ec2 get-console-output --instance-id <instance_id> --profile <your profile>`.
 
 ## Tear down
 

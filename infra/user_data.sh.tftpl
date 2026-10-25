@@ -19,6 +19,7 @@ chmod +x /opt/demo/wipe-engine.sh
 cat > /opt/demo/.env <<'ENV'
 DEMO_HOSTNAME=${hostname}
 DEMO_ALLOWED_ORIGINS=${allowed_origins}
+DEMO_AWS_REGION=${region}
 ENV
 
 # Let's Encrypt allows only 5 failed validations per hostname per hour, so Caddy does not start
