@@ -1,0 +1,14 @@
+# TLS is automatic. Caddy sets X-Forwarded-For to the connecting address and ignores any value the
+# client sent, which is what the API's per-address rate limit relies on.
+#
+# `handle` blocks, not bare directives: Caddy orders directives by type, not by position, and runs
+# `respond` before `reverse_proxy`, so a bare `respond 404` answered every request.
+{$DEMO_HOSTNAME} {
+	encode gzip
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		respond 404
+	}
+}

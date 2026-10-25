@@ -1,0 +1,3 @@
+cellaflow==0.8.0
+fastapi==0.120.0
+uvicorn==0.38.0

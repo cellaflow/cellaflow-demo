@@ -1,0 +1,39 @@
+# Production stack on the demo instance. Only Caddy publishes ports.
+services:
+  engine:
+    image: ghcr.io/cellaflow/cellaflow:0.2.0
+    environment:
+      # Reachable only on this compose network, by the demo API.
+      CELLAFLOW_ALLOW_UNAUTHENTICATED: "true"
+      CELLAFLOW_LOG_LEVEL: warn
+    volumes:
+      - engine-data:/data
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    environment:
+      ENGINE_TARGET: engine:50051
+      DEMO_ALLOWED_ORIGINS: ${DEMO_ALLOWED_ORIGINS}
+    depends_on:
+      engine:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DEMO_HOSTNAME: ${DEMO_HOSTNAME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  engine-data:
+  caddy-data:

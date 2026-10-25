@@ -1,0 +1,26 @@
+# The demo stack. Locally: `docker compose up -d --build`, then the API is on localhost:8000.
+# In production, deploy/compose.prod.yml adds Caddy in front and publishes nothing else.
+services:
+  engine:
+    image: ghcr.io/cellaflow/cellaflow:0.2.0
+    environment:
+      # The engine is reachable only on this compose network, by the demo API.
+      CELLAFLOW_ALLOW_UNAUTHENTICATED: "true"
+      CELLAFLOW_LOG_LEVEL: warn
+    volumes:
+      - engine-data:/data
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    environment:
+      ENGINE_TARGET: engine:50051
+    depends_on:
+      engine:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+volumes:
+  engine-data:
