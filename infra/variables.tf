@@ -19,6 +19,12 @@ variable "subdomain" {
   default = "demo"
 }
 
+variable "availability_zone" {
+  description = "The instance and its certificate disk must share a zone. 1f is where the instance first landed."
+  type        = string
+  default     = "us-east-1f"
+}
+
 variable "instance_type" {
   description = "2 GB: every Cellaflow agent is its own process, about 13 MiB each, up to 6 runs of 8"
   type        = string
