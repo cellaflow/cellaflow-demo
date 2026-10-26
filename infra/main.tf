@@ -70,6 +70,7 @@ locals {
     "Caddyfile"            = file("${path.module}/../deploy/Caddyfile")
     "wipe-engine.sh"       = file("${path.module}/../deploy/wipe-engine.sh")
     "api/app.py"           = file("${path.module}/../api/app.py")
+    "api/agents.py"        = file("${path.module}/../api/agents.py")
     "api/requirements.txt" = file("${path.module}/../api/requirements.txt")
     "api/Dockerfile"       = file("${path.module}/../api/Dockerfile")
   }
