@@ -1,13 +1,14 @@
 # cellaflow-demo
 
 The live demo on cellaflow.com: several agents race to place one order, with and without
-Cellaflow, against a real engine. Visitors can add agents while the order is in flight and see how
-many orders actually went through.
+Cellaflow, against a real engine. Visitors can add agents while the order is in flight, kill agents
+and watch them recover, and see how many orders and confirmations actually went out.
 
 Design, what is real and what is simulated, and the limits: [docs/design.md](docs/design.md).
 
 ```
-api/       The demo API (FastAPI). Agents are real Python SDK clients of a real engine.
+api/       The demo API (FastAPI), and the agents (agents.py): real Python SDK clients of a real
+           engine, one OS process each.
 deploy/    Production compose file, Caddyfile, and the daily engine wipe.
 infra/     Terraform for the AWS instance (us-east-1).
 ```

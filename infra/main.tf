@@ -70,6 +70,7 @@ locals {
     "Caddyfile"            = file("${path.module}/../deploy/Caddyfile")
     "wipe-engine.sh"       = file("${path.module}/../deploy/wipe-engine.sh")
     "api/app.py"           = file("${path.module}/../api/app.py")
+    "api/agents.py"        = file("${path.module}/../api/agents.py")
     "api/requirements.txt" = file("${path.module}/../api/requirements.txt")
     "api/Dockerfile"       = file("${path.module}/../api/Dockerfile")
   }
@@ -86,6 +87,7 @@ resource "aws_instance" "demo" {
 
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     hostname        = local.hostname
+    hostnames       = join(", ", concat([local.hostname], var.extra_hostnames))
     allowed_origins = var.allowed_origins
     region          = var.region
     files_b64       = { for name, content in local.files : name => base64gzip(content) }
