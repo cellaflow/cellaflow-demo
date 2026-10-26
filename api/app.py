@@ -196,7 +196,8 @@ def apply_event(run_id: str, arm: str, number: int, attempt: int, kind: str, fie
             agent.steps[step] = state
             if fields.get("by") is not None:
                 agent.step_by[step] = fields["by"]
-            if state in ("done", "received", "recovered"):
+            # Leases exist only on the Cellaflow side, so only an agent there ends the wait.
+            if arm == CELLAFLOW and state in ("done", "received", "recovered"):
                 run.lease_lapses.pop(step, None)
             if fields.get("confirmation"):
                 agent.confirmation = fields["confirmation"]
