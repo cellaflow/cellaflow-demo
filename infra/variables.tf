@@ -20,9 +20,9 @@ variable "subdomain" {
 }
 
 variable "instance_type" {
-  description = "t4g.micro is enough: the engine and the API together use well under its 1 GB"
+  description = "2 GB: every Cellaflow agent is its own process, about 13 MiB each, up to 6 runs of 8"
   type        = string
-  default     = "t4g.micro"
+  default     = "t4g.small"
 }
 
 variable "allowed_origins" {
