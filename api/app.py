@@ -132,9 +132,10 @@ class Run:
         return f"order-{agents.ORDER_ID}-{self.id}"
 
     def session_id(self, number: int, attempt: int) -> str:
-        # A new session per attempt. The steps that matter, placing the order and sending the
-        # confirmation, are shared across the run, so a restarted agent gets their recorded
-        # results back from the engine by key, whichever session it is in.
+        # A new session per attempt. Every step is keyed independently of the session: placing
+        # the order and sending the confirmation are shared across the run, and pricing is keyed
+        # per agent. So a restarted agent gets every recorded result back from the engine by key,
+        # whichever session it is in.
         return f"session-{self.id}-agent-{number}-{attempt}"
 
     def expired(self) -> bool:
@@ -333,7 +334,7 @@ def kill(run: Run, number: int) -> None:
             if agent.arm == CELLAFLOW:
                 # A lease this agent held stops being renewed now, and lapses within its TTL.
                 for step, state in agent.steps.items():
-                    if state == "running" and step in ("order", "confirm"):
+                    if state == "running":
                         run.lease_lapses[step] = killed_at + LEASE_TTL_MS
                 if agent.pid:
                     try:

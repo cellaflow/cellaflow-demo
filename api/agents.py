@@ -163,7 +163,9 @@ def run_cellaflow_agent(
 
     agent_id = f"agent-{number}"
 
-    @step(agent_id=agent_id)
+    # This agent's own work, keyed by the run and the agent rather than by the session: a restarted
+    # agent starts a new session, and gets its price back from the engine by this key.
+    @step(agent_id=agent_id, idempotency_key=f"{coordination_id}:price:{agent_id}")
     def price_cart(order_id: str) -> int:
         ran["price"] = True
         report("step", step="price", state="running")
