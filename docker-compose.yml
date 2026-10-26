@@ -7,9 +7,7 @@ services:
       # The engine is reachable only on this compose network, by the demo API.
       CELLAFLOW_ALLOW_UNAUTHENTICATED: "true"
       CELLAFLOW_LOG_LEVEL: warn
-      # Engine 0.2.0 exports telemetry to localhost:4317 by default and logs an error every 15s
-      # when nothing listens there. A value that is not a URI makes setup fail once at boot, with
-      # one log line, and nothing runs. Remove when moving to an engine where export is opt-in.
+      # Telemetry export is off for the demo: there is no collector.
       CELLAFLOW_OTLP_ENDPOINT: "disabled: no collector"
     volumes:
       - engine-data:/data

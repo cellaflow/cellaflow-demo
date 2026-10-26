@@ -6,51 +6,58 @@ without Cellaflow.
 
 ## What the visitor does
 
-1. Picks how many agents to start (1 to 10) and presses Start.
-2. While the order is in flight (6 seconds), adds more agents.
-3. After it lands, adds more again.
+1. Picks how many agents to start (1 to 8) and presses Start.
+2. While the order is in flight, adds more agents.
+3. Kills any running agent. It restarts two seconds later on its own.
 
 Each agent is started twice at the same moment, once in each arm, so the two arms see identical
-arrivals.
+arrivals. A kill stops the agent in both arms at the same moment, and both restart together.
 
-## The two arms
+## What every agent does
+
+Three steps: price the cart (1 s), place the order (5 s), send the customer a confirmation (2 s).
 
 | | Without Cellaflow | With Cellaflow |
 | :--- | :--- | :--- |
-| What the agent does | Checks whether order #4417 exists; if not, places it | Calls `place_order` through the Python SDK, a `SCOPE_SHARED` tool keyed on the order id |
-| Arrives while the order is in flight | Sees no order yet, places another | The engine has the call leased to another agent; waits on the lease, then gets that agent's result |
-| Arrives after the order exists | Sees it and stands down | The engine returns the stored result; the tool does not run |
-| Expected orders | One per agent that arrived in the window | One |
+| Progress | Kept in memory | Recorded by the engine, step by step |
+| Placing the order | Checks whether the order exists; if not, places it | `place_order`, a `SCOPE_SHARED` tool keyed on the order id: one agent places it, the rest get its confirmation |
+| Sending the confirmation | Sends it | `send_confirmation`, shared the same way: one email |
+| Killed and restarted | Starts again at step 1 with no record of what it did. If the order exists by then, it assumes the rest was handled and stops, so its confirmation is never sent | Rejoins its own session. The SDK recovers every step the engine recorded without running it again, and carries on from there |
+| Killed while holding a lease | Nothing is held | The lease stops being renewed and lapses within the engine's 20 s default. Until then the other agents wait; then one of them, or the restarted agent, does the step once |
 
 The without-Cellaflow arm is the check-then-act guard agents typically write for themselves. It is
-not a straw man: it is correct for one agent, and every arrival during the 6 seconds breaks it.
+correct for one agent that never crashes, and every overlap or restart breaks it.
 
 ## What is real and what is simulated
 
-- **Real:** the engine (`ghcr.io/cellaflow/cellaflow:0.2.0`, the open edition), the Python SDK
-  (`cellaflow==0.8.0` from PyPI), leases, fencing, the stored result. Agents in the Cellaflow arm
-  are ordinary SDK clients, each in its own session, converging through `SCOPE_SHARED` and a
-  coordination id unique to the run.
-- **Simulated:** the shop. Placing an order appends to an in-memory ledger after a 6-second sleep.
-  The agents are threads, not LLMs: the demo is about what happens at the action, and a model would
-  only add cost and variance.
-- **Waiting state:** shown when the SDK reports the engine answered IN_PROGRESS for that agent, read
-  from the SDK's own log line on the agent's thread. Nothing on the page is inferred.
+- **Real:** the engine (`ghcr.io/cellaflow/cellaflow:0.2.0`, the open edition) and the Python SDK
+  (`cellaflow==0.8.0` from PyPI). Every agent in the Cellaflow arm is its own OS process and its
+  own session, and a kill is `SIGKILL` to that process. The engine sees a process die mid-call.
+- **Stopped, not killed:** agents in the other arm hold nothing outside their own memory, so they
+  are stopped at their next pause, which ends them the same way.
+- **Simulated:** the shop and the outbox, which append to files after a pause. The agents run
+  scripted steps, not an LLM: the demo is about what happens at the action.
+- **States on the page:** each step reports whether it ran, waited on another agent's lease, was
+  received from another agent, or was recovered from this agent's own record after a restart. A
+  step is "waiting" only when the engine answered IN_PROGRESS for it.
 
-The counters are read from each arm's ledger, never from what agents report.
+The counters are read from each arm's shop and outbox files, never from what agents report.
 
 ## Limits
 
 | Limit | Value | Setting |
 | :--- | :--- | :--- |
-| Agents per run | 10 | `DEMO_MAX_AGENTS_PER_RUN` |
-| Run lifetime | 120 s | `DEMO_RUN_TTL_SECONDS` |
-| Active runs | 20 | `DEMO_MAX_ACTIVE_RUNS` |
+| Agents per run | 8 | `DEMO_MAX_AGENTS_PER_RUN` |
+| Kills per run | 12 | `DEMO_MAX_KILLS_PER_RUN` |
+| Run lifetime | 180 s | `DEMO_RUN_TTL_SECONDS` |
+| Active runs | 6 | `DEMO_MAX_ACTIVE_RUNS` |
 | New runs per IP per minute | 6 | `DEMO_RUNS_PER_IP_PER_MINUTE` |
-| Order duration | 6 s | `DEMO_ORDER_SECONDS` |
+| Step durations | 1 s, 5 s, 2 s | `DEMO_PRICE_SECONDS`, `DEMO_ORDER_SECONDS`, `DEMO_CONFIRM_SECONDS` |
+| Restart after a kill | 2 s | `DEMO_RESTART_DELAY_SECONDS` |
 
-Runs live in memory and are dropped a minute after they expire. The engine's data is wiped daily.
-Each run has its own coordination id, so visitors never share keys.
+Runs live in memory and are dropped a minute after they expire, with their files. An agent process
+still running after two minutes is stopped. The engine's data is wiped daily. Each run has its own
+coordination id, and each agent its own session, so visitors never share keys.
 
 ## Security
 
