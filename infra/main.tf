@@ -87,6 +87,7 @@ resource "aws_instance" "demo" {
 
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     hostname        = local.hostname
+    hostnames       = join(", ", concat([local.hostname], var.extra_hostnames))
     allowed_origins = var.allowed_origins
     region          = var.region
     files_b64       = { for name, content in local.files : name => base64gzip(content) }

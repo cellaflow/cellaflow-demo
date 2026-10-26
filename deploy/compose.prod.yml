@@ -47,7 +47,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      DEMO_HOSTNAME: ${DEMO_HOSTNAME}
+      DEMO_HOSTNAMES: ${DEMO_HOSTNAMES}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

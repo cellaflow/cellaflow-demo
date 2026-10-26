@@ -30,3 +30,9 @@ variable "allowed_origins" {
   type        = string
   default     = "https://cellaflow.com,https://www.cellaflow.com,http://localhost:3000"
 }
+
+variable "extra_hostnames" {
+  description = "More names the proxy serves, each with its own certificate and its own DNS record"
+  type        = list(string)
+  default     = ["demo-api.cellaflow.com"]
+}
