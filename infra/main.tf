@@ -1,5 +1,6 @@
-# The demo's infrastructure: one instance, one Elastic IP, one firewall. `terraform destroy`
-# removes all three. The DNS record lives in Cloudflare and is created by hand (README, Deploy).
+# The demo's infrastructure: one instance, a small disk for its certificates, one Elastic IP, one
+# firewall. `terraform destroy` removes them all. The DNS records live in Cloudflare and are created
+# by hand (README, Deploy).
 
 terraform {
   required_version = ">= 1.5"
@@ -65,33 +66,40 @@ resource "aws_security_group" "demo" {
 
 locals {
   hostname = "${var.subdomain}.${var.zone_name}"
-  files = {
-    "compose.prod.yml"     = file("${path.module}/../deploy/compose.prod.yml")
-    "Caddyfile"            = file("${path.module}/../deploy/Caddyfile")
-    "wipe-engine.sh"       = file("${path.module}/../deploy/wipe-engine.sh")
-    "api/app.py"           = file("${path.module}/../api/app.py")
-    "api/agents.py"        = file("${path.module}/../api/agents.py")
-    "api/requirements.txt" = file("${path.module}/../api/requirements.txt")
-    "api/Dockerfile"       = file("${path.module}/../api/Dockerfile")
-  }
+  # The files the instance runs, listed once in deploy/files.txt so deploy/push.sh ships the same
+  # set. A path under deploy/ lands at the top of /opt/demo; any other keeps its path.
+  file_list = compact(split("\n", file("${path.module}/../deploy/files.txt")))
+  files     = { for p in local.file_list : trimprefix(p, "deploy/") => file("${path.module}/../${p}") }
+  # Compose reads this as /opt/demo/.env. Written at first boot and by deploy/push.sh.
+  env_file = <<-ENV
+    DEMO_HOSTNAME=${local.hostname}
+    DEMO_HOSTNAMES=${join(", ", concat([local.hostname], var.extra_hostnames))}
+    DEMO_ALLOWED_ORIGINS=${var.allowed_origins}
+    DEMO_AWS_REGION=${var.region}
+  ENV
 }
 
 resource "aws_instance" "demo" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
+  availability_zone           = var.availability_zone
   vpc_security_group_ids      = [aws_security_group.demo.id]
   iam_instance_profile        = aws_iam_instance_profile.demo.name
   associate_public_ip_address = true
-  # A change to any file rebuilds the instance. The engine's data is disposable by design.
-  user_data_replace_on_change = true
 
+  # Used at first boot only. Code changes reach the running instance through deploy/push.sh.
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     hostname        = local.hostname
-    hostnames       = join(", ", concat([local.hostname], var.extra_hostnames))
-    allowed_origins = var.allowed_origins
-    region          = var.region
+    env_file        = local.env_file
+    caddy_volume_id = aws_ebs_volume.caddy.id
     files_b64       = { for name, content in local.files : name => base64gzip(content) }
   })
+
+  # Neither a code change nor a new Ubuntu release replaces the instance. A replacement would cost a
+  # few minutes of downtime; the certificates survive it either way (aws_ebs_volume.caddy).
+  lifecycle {
+    ignore_changes = [user_data, ami]
+  }
 
   metadata_options {
     http_tokens = "required"
@@ -106,6 +114,29 @@ resource "aws_instance" "demo" {
   tags = {
     Name = "cellaflow-demo"
   }
+}
+
+# --- Certificates ---------------------------------------------------------------------------------
+# Caddy's data (certificates and the ACME account) lives on its own disk, so a new instance reuses
+# the certificates instead of requesting new ones. Let's Encrypt issues only five per hostname per
+# week, and replacing the instance used to spend one of them each time.
+
+resource "aws_ebs_volume" "caddy" {
+  availability_zone = var.availability_zone
+  size              = 1
+  type              = "gp3"
+  encrypted         = true
+  tags = {
+    Name = "cellaflow-demo-certificates"
+  }
+}
+
+resource "aws_volume_attachment" "caddy" {
+  device_name = "/dev/sdf"
+  volume_id   = aws_ebs_volume.caddy.id
+  instance_id = aws_instance.demo.id
+  # On a replacement, the old instance stops before the disk moves, so Caddy is not writing to it.
+  stop_instance_before_detaching = true
 }
 
 # --- Logs -----------------------------------------------------------------------------------------

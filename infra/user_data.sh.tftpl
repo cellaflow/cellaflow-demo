@@ -17,11 +17,20 @@ echo "${content}" | base64 -d | gunzip > "/opt/demo/${name}"
 chmod +x /opt/demo/wipe-engine.sh
 
 cat > /opt/demo/.env <<'ENV'
-DEMO_HOSTNAME=${hostname}
-DEMO_HOSTNAMES=${hostnames}
-DEMO_ALLOWED_ORIGINS=${allowed_origins}
-DEMO_AWS_REGION=${region}
-ENV
+${env_file}ENV
+
+# Caddy's certificates live on their own disk (infra/main.tf, Certificates), attached once the
+# instance exists. Wait for it, format it only if it is new, and mount it where compose expects it.
+# Without it Caddy would request new certificates, so a missing disk fails the boot instead.
+cert_disk=/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${replace(caddy_volume_id, "-", "")}
+for wait in $(seq 1 60); do
+  [ -e "$cert_disk" ] && break
+  sleep 5
+done
+blkid "$cert_disk" || mkfs.ext4 -L caddy-data "$cert_disk"
+install -d /srv/caddy-data
+echo "UUID=$(blkid -s UUID -o value "$cert_disk") /srv/caddy-data ext4 defaults,nofail 0 2" >> /etc/fstab
+mount /srv/caddy-data
 
 # Let's Encrypt allows only 5 failed validations per hostname per hour, so Caddy does not start
 # until public DNS points at this instance (checked against two resolvers). Waits up to 2 hours.

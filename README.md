@@ -43,8 +43,22 @@ Then, in Cloudflare, create an A record for `demo.cellaflow.com` pointing at `pu
 only** (not proxied). The instance waits for that record before requesting a certificate, so the
 order does not matter, but HTTPS starts only once the record resolves.
 
-Any change to `api/` or `deploy/` rebuilds the instance on the next `apply`. The engine's data is
-disposable, and is wiped daily at 09:00 UTC anyway.
+To ship a change to `api/` or `deploy/`, push it to the running instance:
+
+```bash
+deploy/push.sh           # about 30 seconds, through Session Manager
+```
+
+It sends the files in `deploy/files.txt`, rebuilds what changed, and restarts the API (a few
+seconds of downtime) and Caddy only if its config changed. `terraform apply` does not redeploy
+code: the instance's boot script is used at first boot only, so a code change never replaces the
+instance. Add a new file to `deploy/files.txt`, which both read.
+
+Caddy's certificates live on their own 1 GB disk, which outlives the instance. If the instance is
+replaced (`terraform apply -replace=aws_instance.demo`, or a change such as the zone), the new one
+reattaches the disk and reuses them. That matters because Let's Encrypt issues only five
+certificates per hostname per week. The engine's data stays on the instance; it is disposable, and
+is wiped daily at 09:00 UTC anyway.
 
 ## Logs
 

@@ -50,11 +50,11 @@ services:
       DEMO_HOSTNAMES: ${DEMO_HOSTNAMES}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
+      # Certificates and the ACME account, on a disk that outlives the instance (infra/main.tf).
+      - /srv/caddy-data:/data
     depends_on:
       - api
     restart: unless-stopped
 
 volumes:
   engine-data:
-  caddy-data:

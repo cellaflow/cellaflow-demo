@@ -16,3 +16,13 @@ output "instance_id" {
   description = "Boot log: aws ec2 get-console-output --instance-id <id> --profile <your profile>"
   value       = aws_instance.demo.id
 }
+
+output "region" {
+  description = "Read by deploy/push.sh"
+  value       = var.region
+}
+
+output "env_file" {
+  description = "The instance's /opt/demo/.env. Read by deploy/push.sh"
+  value       = local.env_file
+}
