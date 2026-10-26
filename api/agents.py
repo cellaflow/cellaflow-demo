@@ -9,8 +9,8 @@ customer a confirmation. The agents differ in one way only:
 - **With Cellaflow**, an agent is an ordinary client of the Python SDK, running in its own OS
   process. Placing the order and sending the confirmation are tools shared across every agent in
   the run, so the engine leases each one to a single agent and hands the others its result. When
-  the process is killed with SIGKILL and restarted on the same session, the SDK recovers every
-  step the engine recorded, without running it again.
+  the process is killed with SIGKILL and restarted, the engine hands it back every result it had
+  already produced, by the same keys, without running it again.
 
 The shop and the outbox are append-only files guarded by ``flock``, so processes can share them.
 The counters on the page are read from these files, never from what an agent reports.

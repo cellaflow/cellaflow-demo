@@ -5,8 +5,8 @@ without Cellaflow, where an agent keeps its progress in memory, and with Cellafl
 agent is a real Python SDK client in its own OS process, talking to a real engine.
 
 Killing an agent sends SIGKILL to its process on the Cellaflow side and stops it at the same
-moment on the other. Both are restarted two seconds later: the Cellaflow agent on its own
-session, where the SDK recovers every step the engine recorded, and the other from step 1.
+moment on the other. Both are restarted two seconds later. The Cellaflow agent gets back, from
+the engine, every result it had already produced; the other starts again from step 1.
 
 The counters the page shows are read from the shop's and the outbox's files, never from what
 the agents report.
@@ -131,9 +131,11 @@ class Run:
         # Names the shared work for SCOPE_SHARED. Unique per run, so visitors never share a key.
         return f"order-{agents.ORDER_ID}-{self.id}"
 
-    def session_id(self, number: int) -> str:
-        # Stable across restarts: a restarted agent rejoins this session and recovers from it.
-        return f"session-{self.id}-agent-{number}"
+    def session_id(self, number: int, attempt: int) -> str:
+        # A new session per attempt. The steps that matter, placing the order and sending the
+        # confirmation, are shared across the run, so a restarted agent gets their recorded
+        # results back from the engine by key, whichever session it is in.
+        return f"session-{self.id}-agent-{number}-{attempt}"
 
     def expired(self) -> bool:
         return now_ms() - self.created_ms > RUN_TTL_SECONDS * 1000
@@ -233,7 +235,7 @@ def run_attempt(run: Run, arm: str, number: int, attempt: int) -> str:
     if arm == CELLAFLOW:
         process = CTX.Process(
             target=agents.run_cellaflow_agent,
-            args=(number, attempt, run.session_id(number), run.coordination_id,
+            args=(number, attempt, run.session_id(number, attempt), run.coordination_id,
                   run.path("orders", arm), run.path("emails", arm), ENGINE_TARGET, EVENTS, run.id),
             daemon=True,
         )

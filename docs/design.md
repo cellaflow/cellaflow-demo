@@ -22,7 +22,7 @@ Three steps: price the cart (1 s), place the order (5 s), send the customer a co
 | Progress | Kept in memory | Recorded by the engine, step by step |
 | Placing the order | Checks whether the order exists; if not, places it | `place_order`, a `SCOPE_SHARED` tool keyed on the order id: one agent places it, the rest get its confirmation |
 | Sending the confirmation | Sends it | `send_confirmation`, shared the same way: one email |
-| Killed and restarted | Starts again at step 1 with no record of what it did. If the order exists by then, it assumes the rest was handled and stops, so its confirmation is never sent | Rejoins its own session. The SDK recovers every step the engine recorded without running it again, and carries on from there |
+| Killed and restarted | Starts again at step 1 with no record of what it did. If the order exists by then, it assumes the rest was handled and stops, so its confirmation is never sent | Gets back from the engine, by key, every result it already produced, and carries on from there. Pricing the cart has no side effect and simply runs again |
 | Killed while holding a lease | Nothing is held | The lease stops being renewed and lapses within the engine's 20 s default. Until then the other agents wait; then one of them, or the restarted agent, does the step once |
 
 The without-Cellaflow arm is the check-then-act guard agents typically write for themselves. It is
