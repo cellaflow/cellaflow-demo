@@ -37,7 +37,11 @@ import agents
 ENGINE_TARGET = os.environ.get("ENGINE_TARGET", "localhost:50051")
 MAX_AGENTS_PER_RUN = int(os.environ.get("DEMO_MAX_AGENTS_PER_RUN", "8"))
 MAX_ACTIVE_RUNS = int(os.environ.get("DEMO_MAX_ACTIVE_RUNS", "6"))
-MAX_KILLS_PER_RUN = int(os.environ.get("DEMO_MAX_KILLS_PER_RUN", "12"))
+#: 0 means no cap, which is the default. Killing agents is the point of the demo, and a
+#: visitor who sees a budget counting down treats it as a reason to be sparing. What bounds
+#: a run's cost is its TTL and the per-IP rate limit, both of which still apply. Set this to
+#: a positive number to re-impose a cap without a deploy.
+MAX_KILLS_PER_RUN = int(os.environ.get("DEMO_MAX_KILLS_PER_RUN", "0"))
 RUN_TTL_SECONDS = int(os.environ.get("DEMO_RUN_TTL_SECONDS", "180"))
 RUNS_PER_IP_PER_MINUTE = int(os.environ.get("DEMO_RUNS_PER_IP_PER_MINUTE", "6"))
 RESTART_DELAY_SECONDS = float(os.environ.get("DEMO_RESTART_DELAY_SECONDS", "2"))
@@ -163,7 +167,6 @@ class Run:
             "now_ms": now_ms(),
             "expires_ms": self.created_ms + RUN_TTL_SECONDS * 1000,
             "max_agents": MAX_AGENTS_PER_RUN,
-            "kills_left": MAX_KILLS_PER_RUN - self.kills,
             "lease_lapses_ms": lapses,
             "arms": arms,
         }
@@ -318,7 +321,7 @@ def kill(run: Run, number: int) -> None:
     with run.lock:
         if not 1 <= number <= len(run.agents[NAIVE]):
             raise HTTPException(404, "No such agent.")
-        if run.kills >= MAX_KILLS_PER_RUN:
+        if MAX_KILLS_PER_RUN and run.kills >= MAX_KILLS_PER_RUN:
             raise HTTPException(429, f"A run allows {MAX_KILLS_PER_RUN} kills. Start a new one.")
         targets = [run.agent(arm, number) for arm in ARMS]
         if not any(a.state == "running" for a in targets):

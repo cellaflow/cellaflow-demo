@@ -48,7 +48,7 @@ The counters are read from each arm's shop and outbox files, never from what age
 | Limit | Value | Setting |
 | :--- | :--- | :--- |
 | Agents per run | 8 | `DEMO_MAX_AGENTS_PER_RUN` |
-| Kills per run | 12 | `DEMO_MAX_KILLS_PER_RUN` |
+| Kills per run | unlimited | `DEMO_MAX_KILLS_PER_RUN`, 0 for no cap |
 | Run lifetime | 180 s | `DEMO_RUN_TTL_SECONDS` |
 | Active runs | 6 | `DEMO_MAX_ACTIVE_RUNS` |
 | New runs per IP per minute | 6 | `DEMO_RUNS_PER_IP_PER_MINUTE` |
