@@ -1,14 +1,14 @@
 # Production stack on the demo instance. Only Caddy publishes ports.
 services:
   engine:
-    image: ghcr.io/cellaflow/cellaflow:0.2.0
+    image: ghcr.io/cellaflow/cellaflow:0.3.0
     environment:
       # Reachable only on this compose network, by the demo API.
       CELLAFLOW_ALLOW_UNAUTHENTICATED: "true"
       # info logs each session and step commit, a few lines per agent: what you watch the demo by.
       CELLAFLOW_LOG_LEVEL: info
-      # Telemetry export is off for the demo: there is no collector.
-      CELLAFLOW_OTLP_ENDPOINT: "disabled: no collector"
+      # Telemetry export is off for the demo, with no collector: the engine exports nothing
+      # unless an endpoint is set.
     volumes:
       - engine-data:/data
     logging:
