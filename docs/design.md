@@ -30,8 +30,8 @@ correct for one agent that never crashes, and every overlap or restart breaks it
 
 ## What is real and what is simulated
 
-- **Real:** the engine (`ghcr.io/cellaflow/cellaflow:0.2.0`, the open edition) and the Python SDK
-  (`cellaflow==0.8.0` from PyPI). Every agent in the Cellaflow arm is its own OS process and its
+- **Real:** the engine (`ghcr.io/cellaflow/cellaflow:0.3.0`, the open edition) and the Python SDK
+  (`cellaflow==0.10.0` from PyPI). Every agent in the Cellaflow arm is its own OS process and its
   own session, and a kill is `SIGKILL` to that process. The engine sees a process die mid-call.
 - **Stopped, not killed:** agents in the other arm hold nothing outside their own memory, so they
   are stopped at their next pause, which ends them the same way.
