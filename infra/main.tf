@@ -181,6 +181,33 @@ resource "aws_iam_role_policy_attachment" "ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# AmazonSSMManagedInstanceCore also grants ssm:GetParameter* on every
+# parameter, and the account's default SSM key lets any principal decrypt
+# through SSM. The demo reads no parameters (Run Command and Session Manager
+# need the agent's permissions, not these), so an explicit Deny takes the
+# Cellaflow service's secrets out of reach without touching what the agent
+# does. A Deny always wins over the managed policy's Allow.
+resource "aws_iam_role_policy" "deny_cellaflow_parameters" {
+  name = "deny-cellaflow-parameters"
+  role = aws_iam_role.demo.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Deny"
+      Action = [
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+        "ssm:GetParameterHistory",
+      ]
+      Resource = [
+        "arn:aws:ssm:*:*:parameter/cellaflow",
+        "arn:aws:ssm:*:*:parameter/cellaflow/*",
+      ]
+    }]
+  })
+}
+
 resource "aws_iam_instance_profile" "demo" {
   name = "cellaflow-demo-instance"
   role = aws_iam_role.demo.name
